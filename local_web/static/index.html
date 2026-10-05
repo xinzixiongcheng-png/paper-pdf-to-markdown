@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>论文 PDF → Markdown</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow">ONLINE · BATCH PDF TO MARKDOWN</div>
+      <h1>论文 PDF → Markdown</h1>
+      <p class="subtitle">批量转换，图片单独保存，Markdown 自动使用相对路径；文件仅用于本次转换。</p>
+    </header>
+
+    <section id="dropzone" class="dropzone" tabindex="0">
+      <div class="icon">↓</div>
+      <h2>把多篇论文 PDF 拖到这里</h2>
+      <p>或点击选择多个文件 · 单个最大 200 MB · 总计最大 500 MB</p>
+      <button id="pick" type="button">选择 PDF</button>
+      <input id="file" type="file" accept="application/pdf,.pdf" multiple hidden />
+    </section>
+
+    <section id="queue" class="queue hidden">
+      <div class="section-head">
+        <h2>待转换文件</h2>
+        <span id="count"></span>
+      </div>
+      <div id="file-list"></div>
+      <button id="convert" class="primary" type="button">开始批量转换</button>
+    </section>
+
+    <section id="status" class="status hidden"></section>
+
+    <section id="result" class="result hidden">
+      <div class="result-head">
+        <div>
+          <div class="eyebrow">READY</div>
+          <h2>批量转换完成</h2>
+          <p id="summary"></p>
+        </div>
+        <button id="download" class="primary" type="button">下载 ZIP</button>
+      </div>
+      <div class="structure">
+        <code>论文名/论文名.md</code>
+        <span>＋</span>
+        <code>论文名/images/image_001.png</code>
+      </div>
+      <p class="note">表格会尽可能转换为 Markdown 表格；PDF 中的嵌入式图片会保存到对应论文的 <code>images/</code> 目录，Markdown 使用相对路径引用。</p>
+    </section>
+
+    <footer>MarkItDown 本地网页封装 · 论文 / 报告批量转换</footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>论文 PDF → Markdown</title>
+  <style>
+:root { color-scheme: light; font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f6f7f9; color: #17181a; }
+.shell { width: min(900px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 36px; }
+header { margin-bottom: 28px; }
+.eyebrow { font-size: 11px; letter-spacing: .13em; color: #747980; font-weight: 700; }
+h1 { margin: 8px 0 8px; font-size: 38px; letter-spacing: -.03em; }
+h2 { margin: 6px 0; font-size: 20px; }
+.subtitle { color: #666b73; margin: 0; }
+.dropzone { background: white; border: 1.5px dashed #b9bec6; border-radius: 18px; padding: 52px 24px; text-align: center; transition: .15s; cursor: pointer; }
+.dropzone.dragging { border-color: #111; background: #fafafa; transform: translateY(-1px); }
+.icon { width: 48px; height: 48px; border-radius: 14px; margin: 0 auto 16px; background: #f0f1f3; display: grid; place-items: center; font-size: 25px; }
+.dropzone p { color: #777c83; font-size: 14px; }
+button { border: 0; border-radius: 10px; padding: 11px 17px; font-size: 14px; font-weight: 650; cursor: pointer; background: #e9eaed; }
+button.primary { background: #17181a; color: white; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.queue, .result { margin-top: 20px; background: white; border-radius: 16px; padding: 22px; }
+.section-head, .result-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.section-head { margin-bottom: 12px; }
+#count { color: #7a7f86; font-size: 13px; }
+.file-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #eceef1; }
+.file-number { width: 24px; color: #999; font-size: 12px; }
+.file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { color: #888d94; font-size: 12px; }
+#convert { margin-top: 16px; width: 100%; }
+.status { margin: 16px 0; padding: 13px 15px; border-radius: 10px; background: #eceef1; color: #4f545a; font-size: 14px; }
+.status.success { background: #e8f4ea; color: #286335; }
+.status.error { background: #fae9e9; color: #9c3030; }
+.structure { margin: 18px 0 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: #888; }
+.structure code { background: #f3f4f6; padding: 7px 9px; border-radius: 7px; font-size: 12px; }
+.note { color: #72777e; font-size: 13px; line-height: 1.6; margin-bottom: 0; }
+footer { color: #9a9da2; font-size: 12px; text-align: center; margin-top: 28px; }
+.hidden { display: none !important; }
+@media (max-width: 600px) { .shell { width: min(100% - 24px, 900px); padding-top: 32px; } h1 { font-size: 30px; } .result-head { align-items: flex-start; flex-direction: column; } .result-head button { width: 100%; } }
+
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow">LOCAL · PRIVATE · BATCH PDF TO MARKDOWN</div>
+      <h1>论文 PDF → Markdown</h1>
+      <p class="subtitle">批量转换，图片单独保存，Markdown 自动使用相对路径；所有文件只在本机处理。</p>
+    </header>
+
+    <section id="dropzone" class="dropzone" tabindex="0">
+      <div class="icon">↓</div>
+      <h2>把多篇论文 PDF 拖到这里</h2>
+      <p>或点击选择多个文件 · 单个最大 200 MB · 总计最大 500 MB</p>
+      <button id="pick" type="button">选择 PDF</button>
+      <input id="file" type="file" accept="application/pdf,.pdf" multiple hidden />
+    </section>
+
+    <section id="queue" class="queue hidden">
+      <div class="section-head">
+        <h2>待转换文件</h2>
+        <span id="count"></span>
+      </div>
+      <div id="file-list"></div>
+      <button id="convert" class="primary" type="button">开始批量转换</button>
+    </section>
+
+    <section id="status" class="status hidden"></section>
+
+    <section id="result" class="result hidden">
+      <div class="result-head">
+        <div>
+          <div class="eyebrow">READY</div>
+          <h2>批量转换完成</h2>
+          <p id="summary"></p>
+        </div>
+        <button id="download" class="primary" type="button">下载 ZIP</button>
+      </div>
+      <div class="structure">
+        <code>论文名/论文名.md</code>
+        <span>＋</span>
+        <code>论文名/images/image_001.png</code>
+      </div>
+      <p class="note">表格会尽可能转换为 Markdown 表格；PDF 中的嵌入式图片会保存到对应论文的 <code>images/</code> 目录，Markdown 使用相对路径引用。</p>
+    </section>
+
+    <footer>MarkItDown 本地网页封装 · 论文 / 报告批量转换</footer>
+  </main>
+  <script>
+const dropzone = document.querySelector('#dropzone');
+const input = document.querySelector('#file');
+const pick = document.querySelector('#pick');
+const queue = document.querySelector('#queue');
+const list = document.querySelector('#file-list');
+const count = document.querySelector('#count');
+const convertButton = document.querySelector('#convert');
+const status = document.querySelector('#status');
+const result = document.querySelector('#result');
+const summary = document.querySelector('#summary');
+const download = document.querySelector('#download');
+
+let selectedFiles = [];
+let zipBlob = null;
+
+pick.addEventListener('click', (e) => { e.stopPropagation(); input.click(); });
+dropzone.addEventListener('click', () => input.click());
+dropzone.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') input.click();
+});
+input.addEventListener('change', () => addFiles([...input.files]));
+
+['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, e => {
+  e.preventDefault();
+  dropzone.classList.add('dragging');
+}));
+['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragging');
+}));
+dropzone.addEventListener('drop', e => addFiles([...e.dataTransfer.files]));
+
+convertButton.addEventListener('click', convertBatch);
+
+download.addEventListener('click', () => {
+  if (!zipBlob) return;
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'papers_markdown_with_images.zip';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+function addFiles(files) {
+  const pdfs = files.filter(file => file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf');
+  if (!pdfs.length) {
+    showStatus('请选择 PDF 文件。', true);
+    return;
+  }
+  selectedFiles = [...selectedFiles, ...pdfs];
+  renderQueue();
+  result.classList.add('hidden');
+  input.value = '';
+}
+
+function renderQueue() {
+  queue.classList.remove('hidden');
+  count.textContent = `${selectedFiles.length} 篇`;
+  list.innerHTML = '';
+  selectedFiles.forEach((file, index) => {
+    const row = document.createElement('div');
+    row.className = 'file-row';
+    row.innerHTML = `<span class="file-number">${index + 1}</span><span class="file-name"></span><span class="file-size">${formatBytes(file.size)}</span>`;
+    row.querySelector('.file-name').textContent = file.name;
+    list.appendChild(row);
+  });
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function showStatus(text, error = false) {
+  status.className = `status ${error ? 'error' : ''}`;
+  status.textContent = text;
+  status.classList.remove('hidden');
+}
+
+async function convertBatch() {
+  if (!selectedFiles.length) return;
+
+  const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  if (selectedFiles.length > 100) return showStatus('一次最多处理 100 个 PDF。', true);
+  if (selectedFiles.some(file => file.size > 200 * 1024 * 1024)) return showStatus('存在超过 200 MB 的单个 PDF。', true);
+  if (totalSize > 500 * 1024 * 1024) return showStatus('PDF 总大小超过 500 MB。', true);
+
+  convertButton.disabled = true;
+  download.disabled = true;
+  result.classList.add('hidden');
+  showStatus(`正在批量转换 ${selectedFiles.length} 篇论文……图片也会一起提取。`);
+
+  const form = new FormData();
+  selectedFiles.forEach(file => form.append('files', file, file.name));
+
+  try {
+    const apiBase = window.location.protocol === 'file:' ? 'http://127.0.0.1:8765' : '';
+    const response = await fetch(`${apiBase}/convert-batch`, { method: 'POST', body: form });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || '批量转换失败');
+    }
+    zipBlob = await response.blob();
+    summary.textContent = `已生成 ZIP：${selectedFiles.length} 篇论文，Markdown 与图片已按论文分别整理。`;
+    result.classList.remove('hidden');
+    showStatus('全部处理完成，可以下载 ZIP。');
+    download.disabled = false;
+  } catch (err) {
+    showStatus(`转换失败：${err.message}`, true);
+  } finally {
+    convertButton.disabled = false;
+  }
+}
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Install the bundled MarkItDown package with PDF support
+-e ./packages/markitdown[pdf]
+
+# Extract embedded PDF images
+PyMuPDF>=1.24
